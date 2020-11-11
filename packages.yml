@@ -1,0 +1,24 @@
+name: rapids_dev
+channels:
+- conda-forge
+dependencies:
+- jupyterlab
+- bokeh
+- nodejs
+- python-graphviz
+- scikit-learn
+- umap-learn
+- matplotlib
+- ipywidgets
+- s3fs
+- gcsfs
+- streamz
+- pyspark
+- openjdk=8.0
+- maven
+- psutil
+- pip
+- nb_conda_kernels
+- pip:
+  - dask_labextension
+  - jupyterlab-nvdashboard

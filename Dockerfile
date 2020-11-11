@@ -1,0 +1,66 @@
+# An integration test & dev container which builds and installs RAPIDS from latest source branches
+ARG CUDA_VERSION=10.1
+ARG LINUX_VERSION=ubuntu18.04
+FROM nvidia/cuda:${CUDA_VERSION}-devel-${LINUX_VERSION}
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/lib
+# Needed for promptless tzdata install
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG CC=7
+ARG CXX=7
+RUN apt update -y --fix-missing && \
+    apt upgrade -y && \
+      apt install -y \
+      git \
+      gcc-${CC} \
+      g++-${CXX} \
+      libnuma-dev \
+      tzdata \
+      librdmacm-dev libnuma-dev libibverbs-dev \
+      locales \
+      vim \
+      iputils-ping traceroute
+
+ADD Miniconda3-latest-Linux-x86_64.sh /miniconda.sh
+RUN sh /miniconda.sh -b -p /conda
+ENV PATH=${PATH}:/conda/bin
+# Enables "source activate conda"
+SHELL ["/bin/bash", "-c"]
+
+# Build cuDF conda env
+ENV CONDA_ENV=rapids
+#ADD conda /rapids/conda/environments
+COPY packages.yml /packages.yml
+RUN conda env create --name ${CONDA_ENV} --file /packages.yml
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/conda/envs/${CONDA_ENV}/lib
+
+#RUN source activate ${CONDA_ENV} && conda env update --name ${CONDA_ENV} -f=/rapids/conda/environments/useful_packages.yml
+RUN source activate ${CONDA_ENV} && jupyter labextension install dask-labextension
+RUN source activate ${CONDA_ENV} && jupyter labextension install jupyterlab-nvdashboard
+
+ENV PYNI_PATH=/conda/envs/${CONDA_ENV}
+ENV PYTHON_VERSION=3.7
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+ENV CC=/usr/bin/gcc-${CC}
+ENV CXX=/usr/bin/g++-${CXX}
+ENV CMAKE_CXX11_ABI=ON
+
+# ucx env var for plain TCP, no nvlink
+#ENV UCX_TLS=tcp,sockcm
+# ucx env var for nvlink
+#ENV UCX_TLS=tcp,sockcm,cuda_copy,cuda_ipc
+#ENV UCX_SOCKADDR_TLS_PRIORITY=sockcm
+#ENV UCXPY_IFNAME="enp1s0f0"
+#ENV UCX_CUDA_IPC_CACHE=n
+
+# for building compiled image
+#ADD repos /rapids
+#ADD build.sh /rapids/build.sh
+#RUN source activate ${CONDA_ENV} && bash /rapids/build.sh
+# for building at runtime from locally mounted clones
+RUN conda install --yes nb_conda_kernels
+COPY start-juplab.sh /start-juplab.sh
+CMD source activate ${CONDA_ENV} && ./start-juplab.sh
